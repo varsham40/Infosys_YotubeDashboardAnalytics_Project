@@ -1,0 +1,7 @@
+streamlit
+google-api-python-client
+pandas
+sqlalchemy
+pymysql
+python-dotenv
+plotly
