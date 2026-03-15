@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, String, Integer, Text, ForeignKey, Date, DateTime
+from sqlalchemy import create_engine, Column, String, Integer, BigInteger, Text, ForeignKey, Date, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, DateTime
@@ -11,9 +11,9 @@ class Channel(Base):
 
     channel_id = Column(String(50), primary_key=True)
     channel_name = Column(String(255), nullable=False)
-    subscribers = Column(Integer)
-    views = Column(Integer)
-    total_videos = Column(Integer)
+    subscribers = Column(BigInteger)
+    views = Column(BigInteger)
+    total_videos = Column(BigInteger)
     playlist_id = Column(String(50))
     published_at = Column(String(50)) # Keeping as string for simplicity, can be DateTime
     thumbnail_url = Column(String(255))
@@ -26,7 +26,7 @@ class Video(Base):
     __tablename__ = 'videos'
 
     video_id = Column(String(50), primary_key=True)
-    channel_id = Column(String(50), ForeignKey('channels.channel_id'), nullable=False)
+    channel_id = Column(String(50), ForeignKey('channels.channel_id'), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     published_at = Column(String(50))
     duration = Column(String(20))
@@ -47,11 +47,11 @@ class VideoStats(Base):
     __tablename__ = 'video_statistics'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    video_id = Column(String(50), ForeignKey('videos.video_id'), nullable=False)
-    view_count = Column(Integer)
-    like_count = Column(Integer)
-    comment_count = Column(Integer)
-    captured_at = Column(DateTime, default=datetime.utcnow)
+    video_id = Column(String(50), ForeignKey('videos.video_id'), nullable=False, index=True)
+    view_count = Column(BigInteger)
+    like_count = Column(BigInteger)
+    comment_count = Column(BigInteger)
+    captured_at = Column(DateTime, default=datetime.utcnow, index=True)
     
     # Relationship: Stats belong to a video
     video = relationship("Video", back_populates="stats")

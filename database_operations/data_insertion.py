@@ -4,6 +4,7 @@ from data_processing.channel_extractor import extract_channel_data
 from data_processing.video_extractor import extract_video_data
 from sqlalchemy.orm import Session
 import pandas as pd
+import streamlit as st
 
 # --- HELPER: DATA VALIDATION (Step 4) ---
 def validate_data(data, required_fields):
@@ -108,11 +109,19 @@ def store_channel_data(channel_id: str):
         session.close()
 
 # --- STEP 6: RECENT CHANNELS ---
+@st.cache_data(ttl=600)
 def get_recent_channels(limit=5):
     session = SessionLocal()
     try:
         channels = session.query(Channel).limit(limit).all()
-        return [{"name": c.channel_name, "id": c.channel_id} for c in channels]
+        return [
+            {
+                "name": c.channel_name, 
+                "id": c.channel_id,
+                "thumbnail_url": c.thumbnail_url,
+                "subscribers": c.subscribers
+            } for c in channels
+        ]
     except:
         return []
     finally:

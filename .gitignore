@@ -1,7 +1,12 @@
+.venv/
 venv/
 .env
 __pycache__/
 *.pyc
 MILESTONE_1_SUMMARY.md
-README.md
+README_CHARTS_AND_CALCULATIONS.md
+README_MILESTONE2.md
+README_TECHNICAL.md
 SETUP_GUIDE.md
+streamlit_app/test_simple.png
+db_check_info.csv

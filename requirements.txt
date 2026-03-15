@@ -6,3 +6,6 @@ pymysql
 python-dotenv
 plotly
 isodate
+fpdf2
+pytest
+openpyxl
