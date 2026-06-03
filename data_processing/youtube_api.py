@@ -68,25 +68,31 @@ def get_channel_details(youtube, channel_id):
 
 def get_video_ids(youtube, playlist_id):
     """
-    Fetches all video IDs from a playlist.
-    Note: Limited to 50 videos for this phase to manage quota.
+    Fetches all video IDs from a playlist using pagination.
     """
     video_ids = []
+    next_page_token = None
     try:
-        request = youtube.playlistItems().list(
-            part="contentDetails",
-            playlistId=playlist_id,
-            maxResults=50  # Fetching top 50 recent videos
-        )
-        response = request.execute()
-        
-        for item in response.get("items", []):
-            video_ids.append(item["contentDetails"]["videoId"])
+        while True:
+            request = youtube.playlistItems().list(
+                part="contentDetails",
+                playlistId=playlist_id,
+                maxResults=50,
+                pageToken=next_page_token
+            )
+            response = request.execute()
             
+            for item in response.get("items", []):
+                video_ids.append(item["contentDetails"]["videoId"])
+                
+            next_page_token = response.get("nextPageToken")
+            if not next_page_token:
+                break
+                
         return video_ids
     except HttpError as e:
         print(f"Error fetching video IDs: {e}")
-        return []
+        return video_ids
 
 def get_video_details(youtube, video_ids):
     """

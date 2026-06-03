@@ -9,3 +9,4 @@ isodate
 fpdf2
 pytest
 openpyxl
+XlsxWriter
