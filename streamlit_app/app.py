@@ -26,7 +26,7 @@ except ImportError:
 # Configure path for module imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from database_operations.data_insertion import store_channel_data, get_recent_channels
+from database_operations.data_insertion import store_channel_data, get_recent_channels, store_channel_data_for_year, discard_channel_data_for_year
 from data_processing.channel_extractor import extract_channel_data
 from data_processing.video_extractor import extract_video_data
 from database_operations.Metrics_caluclator import (
@@ -161,6 +161,47 @@ def get_channel_data_from_db(channel_id):
     with engine.connect() as conn:
         df = pd.read_sql(text(query), conn)
     return df
+
+def apply_global_filters(df):
+    if df.empty:
+        return df
+    
+    # Drop duplicates by video_id to ensure clean operations
+    df = df.drop_duplicates(subset=['video_id']).copy()
+    
+    # Compute temporal/metric columns
+    df['published_at_dt'] = pd.to_datetime(df['published_at'], errors='coerce')
+    df = df.dropna(subset=['published_at_dt'])
+    df['year'] = df['published_at_dt'].dt.year
+    df['month_name'] = df['published_at_dt'].dt.month_name()
+    df['day_name'] = df['published_at_dt'].dt.day_name()
+    df['hour'] = df['published_at_dt'].dt.hour
+    
+    # Parse duration and determine type
+    def detect_type(row):
+        dur = parse_duration(row['duration'])
+        has_tag = '#shorts' in str(row['title']).lower()
+        if has_tag or dur <= 100: return 'Shorts'
+        return 'Long-form'
+    
+    df['is_short'] = df.apply(detect_type, axis=1)
+    df['engagement_rate'] = ((df['like_count'] + df['comment_count']) / df['view_count'].replace(0, np.nan) * 100).fillna(0)
+    df['video_url'] = "https://www.youtube.com/watch?v=" + df['video_id']
+    
+    # Filter by global year selection
+    if 'v_selected_year' in st.session_state and st.session_state['v_selected_year'] != "All Years":
+        target_year = int(st.session_state['v_selected_year'])
+        df = df[df['year'] == target_year]
+        
+    # Filter by global content type selection
+    if 'v_types' in st.session_state and st.session_state['v_types']:
+        df = df[df['is_short'].isin(st.session_state['v_types'])]
+        
+    return df
+
+def get_channel_data(channel_id):
+    df_raw = get_channel_data_from_db(channel_id)
+    return apply_global_filters(df_raw)
 
 # --- PREMIUM UI CSS & FONTS ---
 st.markdown("""
@@ -1296,6 +1337,128 @@ with st.sidebar:
         st.rerun()
     
     # ══════════════════════════════════════════════════════
+    # GLOBAL ANALYTICS FILTERS
+    # ══════════════════════════════════════════════════════
+    chid = st.session_state.get('active_channel_id')
+    if chid:
+        df_sb = get_channel_data_from_db(chid)
+        if not df_sb.empty:
+            df_sb['published_at_dt'] = pd.to_datetime(df_sb['published_at'])
+            df_sb['year'] = df_sb['published_at_dt'].dt.year
+            
+            # Determine year range from channel start year to current year
+            start_year = 2005
+            if 'c_published' in df_sb.columns and not df_sb['c_published'].empty:
+                try:
+                    pub_date = str(df_sb['c_published'].iloc[0])
+                    if len(pub_date) >= 4:
+                        start_year = int(pub_date[:4])
+                except Exception:
+                    pass
+            
+            current_year = datetime.now().year
+            years_range = list(range(current_year, start_year - 1, -1))
+            dropdown_options = ["All Years"] + [str(y) for y in years_range]
+
+            st.divider()
+            st.markdown("<div class='sb-section-label'>🎯 Global Analytics Filters</div>", unsafe_allow_html=True)
+            
+            if 'v_selected_year' not in st.session_state:
+                st.session_state['v_selected_year'] = "All Years"
+
+            st.selectbox("📅 Select Year", dropdown_options, key='v_selected_year')
+
+            # Set v_years list based on selectbox
+            if st.session_state['v_selected_year'] == "All Years":
+                st.session_state['v_years'] = years_range
+            else:
+                st.session_state['v_years'] = [int(st.session_state['v_selected_year'])]
+
+            st.multiselect("⏱️ Video Type", ["Long-form", "Shorts"], key='v_types')
+
+            # Check if active channel has cached videos for the selected year
+            selected_year_val = st.session_state['v_selected_year']
+            has_data_for_selected_year = True
+            if selected_year_val != "All Years":
+                target_year = int(selected_year_val)
+                has_data_for_selected_year = any(df_sb['year'] == target_year)
+
+            if not has_data_for_selected_year:
+                st.warning(f"⚠️ No cached videos found for {selected_year_val}.")
+                if st.button(f"📥 Sync {selected_year_val} Videos", use_container_width=True, type="primary"):
+                    with st.status(f"Fetching videos from {selected_year_val}...", expanded=True) as sync_status:
+                        sync_status.write("📡 Connecting to YouTube API...")
+                        res = store_channel_data_for_year(chid, int(selected_year_val), limit=50)
+                        if res['status'] == "Success":
+                            st.cache_data.clear()
+                            sync_status.update(label="✨ Sync Complete!", state="complete")
+                            st.toast(f"Successfully synced videos for {selected_year_val}!")
+                            st.rerun()
+                        else:
+                            sync_status.update(label="❌ Sync Failed", state="error")
+                            st.error(res['message'])
+            else:
+                if selected_year_val != "All Years":
+                    st.info(f"💡 {selected_year_val} data is cached in database.")
+                    if st.button(f"🗑️ Discard {selected_year_val} Cache", use_container_width=True, type="secondary"):
+                        with st.status(f"Discarding cached data for {selected_year_val}...", expanded=True) as discard_status:
+                            res = discard_channel_data_for_year(chid, int(selected_year_val))
+                            if res['status'] == "Success":
+                                st.cache_data.clear()
+                                discard_status.update(label="🧹 Cache Purged!", state="complete")
+                                st.toast(f"Successfully discarded {selected_year_val} cache!")
+                                st.rerun()
+                            else:
+                                discard_status.update(label="❌ Purge Failed", state="error")
+                                st.error(res['message'])
+
+            # Sync check for rivals if Battle Arena is active
+            if cur_page == 'battle' and selected_year_val != "All Years":
+                selected_rivals = st.session_state.get('b_selected', [])
+                if selected_rivals:
+                    recent_ch = get_recent_channels(limit=50)
+                    id_map = {r['name']: r['id'] for r in recent_ch}
+                    sel_ids = [id_map[ch] for ch in selected_rivals if ch in id_map]
+                    if sel_ids:
+                        target_year = int(selected_year_val)
+                        id_str_list = "','".join([cid.replace("'", "''") for cid in sel_ids])
+                        q_check = f"""
+                            SELECT channel_id, COUNT(*) as cnt 
+                            FROM videos 
+                            WHERE channel_id IN ('{id_str_list}') 
+                              AND published_at LIKE '{target_year}%'
+                            GROUP BY channel_id
+                        """
+                        try:
+                            with engine.connect() as conn:
+                                db_res = pd.read_sql(text(q_check), conn)
+                            synced_ids = set(db_res['channel_id'].tolist())
+                        except Exception:
+                            synced_ids = set()
+                            
+                        missing_rivals = []
+                        for name in selected_rivals:
+                            cid = id_map.get(name)
+                            if cid and cid not in synced_ids:
+                                missing_rivals.append((name, cid))
+                                
+                        if missing_rivals:
+                            st.warning(f"⚠️ Benchmark channels missing data for {target_year}: {', '.join([r[0] for r in missing_rivals])}")
+                            for r_name, r_id in missing_rivals:
+                                if st.button(f"📥 Sync {target_year} for {r_name}", key=f"sync_rival_{r_id}_{target_year}", use_container_width=True, type="primary"):
+                                    with st.status(f"Syncing {r_name} for {target_year}...", expanded=True) as r_sync_status:
+                                        r_sync_status.write(f"📡 Syncing {r_name} from YouTube API...")
+                                        res = store_channel_data_for_year(r_id, target_year, limit=50)
+                                        if res['status'] == "Success":
+                                            st.cache_data.clear()
+                                            r_sync_status.update(label="✨ Sync Complete!", state="complete")
+                                            st.toast(f"Synced {r_name} for {target_year}!")
+                                            st.rerun()
+                                        else:
+                                            r_sync_status.update(label="❌ Sync Failed", state="error")
+                                            st.error(res['message'])
+
+    # ══════════════════════════════════════════════════════
     # DYNAMIC PAGE FILTERS (Milestone 7)
     # ══════════════════════════════════════════════════════
     if cur_page in ['vis', 'search', 'battle', 'compare']:
@@ -1308,22 +1471,12 @@ with st.sidebar:
         
         # ─── VISUALS PAGE FILTERS ───
         if cur_page == 'vis':
-            # Data needed for dynamic years
-            chid = st.session_state['active_channel_id']
+            chid = st.session_state.get('active_channel_id')
             if chid:
                 df_sb = get_channel_data_from_db(chid)
                 if not df_sb.empty:
-                    df_sb['published_at_dt'] = pd.to_datetime(df_sb['published_at'])
-                    df_sb['year'] = df_sb['published_at_dt'].dt.year
-                    
-                    years_opt = sorted(df_sb['year'].unique(), reverse=True)
-                    if not st.session_state['v_years']: st.session_state['v_years'] = years_opt
-
                     metric_opt = {"Views": "view_count", "Likes": "like_count", "Comments": "comment_count", "Quality %": "engagement_rate"}
                     st.selectbox("🧪 Primary Metric", list(metric_opt.keys()), key='v_metric')
-                    
-                    st.multiselect("📅 Select Years", years_opt, key='v_years')
-                    st.multiselect("⏱️ Video Type", ["Long-form", "Shorts"], key='v_types')
                     
                     days_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
                     st.multiselect("🗓️ Days of the Week", days_list, key='v_days')
@@ -2390,7 +2543,7 @@ elif st.session_state['page'] == 'dash':
     else:
         render_help_widget('dashboard')
         chid = st.session_state['active_channel_id']
-        df = get_channel_data_from_db(chid)
+        df = get_channel_data(chid)
         if not df.empty:
             c_data = df.iloc[0]
 
@@ -3031,7 +3184,7 @@ elif st.session_state['page'] == 'profile':
     else:
         render_help_widget('profile')
         chid = st.session_state['active_channel_id']
-        df = get_channel_data_from_db(chid)
+        df = get_channel_data(chid)
         if not df.empty:
             df = Caluclate_engagement_rate(df)
             df = Calculate_sub_to_view_ratio(df)
@@ -3495,7 +3648,10 @@ elif st.session_state['page'] == 'battle':
                 q_vids = f"""
                     SELECT
                         c.channel_name,
+                        v.video_id,
                         v.title,
+                        v.published_at,
+                        v.duration,
                         s.view_count,
                         s.like_count,
                         s.comment_count
@@ -3510,7 +3666,8 @@ elif st.session_state['page'] == 'battle':
                       )
                 """
                 with engine.connect() as conn:
-                    v_df = pd.read_sql(text(q_vids), conn)
+                    v_df_raw = pd.read_sql(text(q_vids), conn)
+                v_df = apply_global_filters(v_df_raw)
 
                 # ─────────────────────────────────────────────────────
                 # SECTION 2: BUBBLE CHART — Engagement Matrix (Channel Level)
@@ -3732,6 +3889,11 @@ elif st.session_state['page'] == 'battle':
                     all_ch_b = pd.read_sql(text(q_all_b), conn)
 
                 if not all_ch_b.empty:
+                    year_clause = ""
+                    selected_year_val = st.session_state.get('v_selected_year', 'All Years')
+                    if selected_year_val != "All Years":
+                        year_clause = f"AND v.published_at LIKE '{selected_year_val}%'"
+
                     q_vid_b = f"""
                         SELECT c.channel_name,
                                SUM(s.view_count) as total_vid_views,
@@ -3742,6 +3904,7 @@ elif st.session_state['page'] == 'battle':
                         JOIN video_statistics s ON v.video_id = s.video_id
                         WHERE v.channel_id IN ('{all_id_str_b}')
                           AND s.captured_at = (SELECT MAX(s2.captured_at) FROM video_statistics s2 WHERE s2.video_id = v.video_id)
+                          {year_clause}
                         GROUP BY c.channel_name
                     """
                     with engine.connect() as conn:
@@ -3842,7 +4005,14 @@ elif st.session_state['page'] == 'battle':
                     trend_ids_b = [r['id'] for r in recent if r['name'] in trend_channels_b]
                     t_id_str_b = "','".join(trend_ids_b)
                     q_trend_b = f"""
-                        SELECT c.channel_name, v.published_at, s.view_count, s.like_count, s.comment_count
+                        SELECT c.channel_name,
+                               v.video_id,
+                               v.title,
+                               v.published_at,
+                               v.duration,
+                               s.view_count,
+                               s.like_count,
+                               s.comment_count
                         FROM videos v
                         JOIN channels c ON v.channel_id = c.channel_id
                         JOIN video_statistics s ON v.video_id = s.video_id
@@ -3850,7 +4020,8 @@ elif st.session_state['page'] == 'battle':
                           AND s.captured_at = (SELECT MAX(s2.captured_at) FROM video_statistics s2 WHERE s2.video_id = v.video_id)
                     """
                     with engine.connect() as conn:
-                        t_df_b = pd.read_sql(text(q_trend_b), conn)
+                        t_df_b_raw = pd.read_sql(text(q_trend_b), conn)
+                    t_df_b = apply_global_filters(t_df_b_raw)
 
                     if not t_df_b.empty:
                         t_df_b['published_at_dt'] = pd.to_datetime(t_df_b['published_at'], format='ISO8601')
@@ -3964,7 +4135,7 @@ elif st.session_state['page'] == 'vis':
     else:
         render_help_widget('visuals')
         chid = st.session_state['active_channel_id']
-        df = get_channel_data_from_db(chid)
+        df = get_channel_data(chid)
         if not df.empty:
             st.markdown("""
                 <style>
@@ -4988,7 +5159,7 @@ elif st.session_state['page'] == 'search':
         st.warning("👋 Please select a channel from the sidebar to use Search & Filter.")
     else:
         chid = st.session_state['active_channel_id']
-        df_raw = get_channel_data_from_db(chid)
+        df_raw = get_channel_data(chid)
 
         if df_raw.empty:
             st.error("No data found. Please sync this channel first.")
@@ -5739,7 +5910,7 @@ elif st.session_state['page'] == 'compare':
                 active_ch_id = st.session_state.get('active_channel_id')
                 ch_df_pdf = pd.DataFrame()
                 if active_ch_id:
-                    ch_df_pdf = get_channel_data_from_db(active_ch_id)
+                    ch_df_pdf = get_channel_data(active_ch_id)
                     if not ch_df_pdf.empty:
                         ch_df_pdf = ch_df_pdf.drop_duplicates(subset=['video_id']).copy()
                         ch_df_pdf['published_at_dt'] = pd.to_datetime(ch_df_pdf['published_at'], errors='coerce')
