@@ -1226,6 +1226,351 @@ st.markdown("""
         background: transparent !important;
     }
 
+    /* ═══════════════════════════════════════════════════════════
+       MOBILE RESPONSIVENESS — Tablet & Phone (max-width: 768px)
+       ═══════════════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+
+        /* --- Global typography scale-down --- */
+        * { font-size: 0.92rem !important; }
+        h1 { font-size: 1.75rem !important; }
+        h2 { font-size: 1.45rem !important; }
+        h3 { font-size: 1.25rem !important; }
+        h4 { font-size: 1.1rem !important; }
+
+        /* --- Main content container --- */
+        .main .block-container {
+            padding: 0.8rem 0.6rem 2rem 0.6rem !important;
+            max-width: 100% !important;
+        }
+
+        /* --- Sidebar: make it collapsible and narrower --- */
+        section[data-testid="stSidebar"] {
+            min-width: 0 !important;
+            max-width: 80vw !important;
+        }
+        section[data-testid="stSidebar"] > div {
+            padding-top: 0.4rem !important;
+        }
+        .sb-title { font-size: 1.1rem !important; }
+        .sb-brand .sb-menu {
+            width: 28px !important;
+            height: 28px !important;
+            font-size: 0.9rem !important;
+        }
+
+        /* --- Sidebar buttons: bigger touch targets --- */
+        section[data-testid="stSidebar"] div[data-testid="stButton"] > button {
+            min-height: 3.2rem !important;
+            height: 3.2rem !important;
+            font-size: 1rem !important;
+            padding: 0.5rem 0.8rem !important;
+        }
+
+        /* --- Page heading cards --- */
+        .page-heading-card {
+            padding: 14px 14px !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 8px !important;
+        }
+        .page-heading-card h1 {
+            font-size: 1.4rem !important;
+        }
+        .page-heading-card .icon {
+            font-size: 1.6rem !important;
+        }
+
+        /* --- Metric cards --- */
+        .metric-card {
+            padding: 16px 12px !important;
+        }
+        .metric-value {
+            font-size: 1.8rem !important;
+        }
+        .metric-label {
+            font-size: 0.8rem !important;
+        }
+
+        /* --- Performance cards --- */
+        .perf-card {
+            padding: 14px 10px !important;
+        }
+        .perf-value {
+            font-size: 1.4rem !important;
+        }
+        .perf-label {
+            font-size: 0.75rem !important;
+        }
+
+        /* --- Hero cards --- */
+        .red-hero-card {
+            padding: 24px 16px !important;
+            border-radius: 20px !important;
+        }
+        .red-hero-card h1 {
+            font-size: 1.55rem !important;
+            line-height: 1.25 !important;
+        }
+        .red-hero-card p {
+            font-size: 1rem !important;
+        }
+
+        /* --- Glassy cards --- */
+        .glassy-card-indigo,
+        .glassy-card-purple,
+        .glassy-card-teal {
+            padding: 18px 14px !important;
+            border-radius: 16px !important;
+        }
+        .glassy-card-indigo h3,
+        .glassy-card-purple h2,
+        .glassy-card-purple h3,
+        .glassy-card-teal h3 {
+            font-size: 1.1rem !important;
+        }
+
+        /* --- Creative/vibrant cards --- */
+        .creative-red-card,
+        .vibrant-card {
+            padding: 16px 14px !important;
+            border-radius: 16px !important;
+        }
+
+        /* --- Compare cards --- */
+        .compare-perf-card {
+            padding: 14px 10px !important;
+        }
+        .compare-export-card {
+            padding: 14px 12px !important;
+            min-height: auto !important;
+        }
+
+        /* --- Target user card --- */
+        .target-user-card {
+            padding: 20px 14px !important;
+            border-radius: 20px !important;
+        }
+
+        /* --- Module cards --- */
+        .module-card {
+            padding: 14px 12px !important;
+        }
+
+        /* --- Tables: enable horizontal scroll on mobile --- */
+        .pt-wrap {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            border-radius: 10px !important;
+        }
+        .pt-table {
+            min-width: 480px !important;
+        }
+        .pt-table thead th {
+            font-size: 0.8rem !important;
+            padding: 7px 8px !important;
+        }
+        .pt-table tbody td {
+            font-size: 0.78rem !important;
+            padding: 7px 8px !important;
+        }
+
+        /* --- Tab pills: wrap on mobile --- */
+        div[data-testid="stTabs"] > div[data-baseweb="tab-list"],
+        div[data-testid="stTabs"] > div:first-child {
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+        }
+        button[role="tab"] {
+            font-size: 0.78rem !important;
+            padding: 7px 14px !important;
+            border-radius: 99px !important;
+        }
+
+        /* --- Main buttons: touch-friendly --- */
+        .stButton > button,
+        div[data-testid="stBaseButton-primary"],
+        div[data-testid="stBaseButton-secondary"] {
+            min-height: 3rem !important;
+            font-size: 0.95rem !important;
+        }
+
+        /* --- Form submit buttons --- */
+        div[data-testid="stFormSubmitButton"] button {
+            min-height: 3rem !important;
+            font-size: 1rem !important;
+        }
+
+        /* --- Input fields: bigger tap targets --- */
+        input[type="text"], input[type="number"], textarea {
+            min-height: 2.6rem !important;
+            font-size: 1rem !important;
+        }
+
+        /* --- Help float button: adjust position (avoid overlap with Streamlit toolbar) --- */
+        .help-icon-float {
+            bottom: 64px !important;
+            right: 10px !important;
+            width: 46px !important;
+            height: 46px !important;
+            font-size: 1.4rem !important;
+        }
+
+        /* --- Plotly charts: force full width --- */
+        div[data-testid="stPlotlyChart"] {
+            width: 100% !important;
+            overflow-x: hidden !important;
+        }
+        div[data-testid="stPlotlyChart"] > div {
+            width: 100% !important;
+        }
+
+        /* --- Help page hero --- */
+        .help-page-hero {
+            padding: 20px 14px !important;
+        }
+        .help-page-hero h1 {
+            font-size: 1.6rem !important;
+        }
+
+        /* --- Help section cards --- */
+        .help-section-card {
+            padding: 16px !important;
+        }
+        .help-feature-list {
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important;
+        }
+
+        /* --- Super headings & compare headings --- */
+        .super-heading, .compare-super-heading {
+            padding: 8px 12px !important;
+            margin: 12px 0 8px 0 !important;
+        }
+
+        /* --- Highlight box --- */
+        .highlight-box {
+            padding: 12px !important;
+            font-size: 0.88rem !important;
+        }
+
+        /* --- Icon zoom (feature icons) --- */
+        .icon-zoom {
+            font-size: 2.2rem !important;
+        }
+
+        /* --- FAQ cards --- */
+        .faq-card {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 8px !important;
+            padding: 16px !important;
+        }
+
+        /* --- Tech badges --- */
+        .tech-badge {
+            font-size: 0.75rem !important;
+            padding: 4px 10px !important;
+        }
+
+        /* --- Streamlit columns: allow natural stacking --- */
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+        }
+        div[data-testid="column"] {
+            min-width: 100% !important;
+            flex: 1 1 100% !important;
+        }
+
+        /* --- Dataframe / st.dataframe --- */
+        div[data-testid="stDataFrame"] {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+
+        /* --- Expanders: clean border --- */
+        details summary {
+            font-size: 0.92rem !important;
+            padding: 10px !important;
+        }
+
+        /* --- Select boxes & multiselects --- */
+        div[data-testid="stSelectbox"],
+        div[data-testid="stMultiSelect"] {
+            font-size: 0.92rem !important;
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════
+       SMALL PHONE OVERRIDES (max-width: 480px)
+       ═══════════════════════════════════════════════════ */
+    @media (max-width: 480px) {
+
+        /* Even smaller typography for very small phones */
+        h1 { font-size: 1.5rem !important; }
+        h2 { font-size: 1.3rem !important; }
+        h3 { font-size: 1.15rem !important; }
+
+        /* Main content: tighter padding */
+        .main .block-container {
+            padding: 0.6rem 0.4rem 2rem 0.4rem !important;
+        }
+
+        /* Hero card on small phones */
+        .red-hero-card {
+            padding: 18px 12px !important;
+        }
+        .red-hero-card h1 {
+            font-size: 1.35rem !important;
+        }
+
+        /* Page headings */
+        .page-heading-card h1 {
+            font-size: 1.2rem !important;
+        }
+
+        /* Metric values */
+        .metric-value {
+            font-size: 1.55rem !important;
+        }
+
+        /* Tabs: even more compact */
+        button[role="tab"] {
+            font-size: 0.72rem !important;
+            padding: 6px 10px !important;
+        }
+
+        /* Tables on tiny screens */
+        .pt-table {
+            min-width: 380px !important;
+        }
+        .pt-table thead th,
+        .pt-table tbody td {
+            font-size: 0.72rem !important;
+            padding: 5px 6px !important;
+        }
+
+        /* Sidebar completely off-canvas by default on very small screens */
+        section[data-testid="stSidebar"] {
+            max-width: 90vw !important;
+        }
+
+        /* Glassy cards */
+        .glassy-card-indigo,
+        .glassy-card-purple,
+        .glassy-card-teal {
+            padding: 14px 10px !important;
+        }
+
+        /* Help float: bottom-left to avoid overlap on small screens */
+        .help-icon-float {
+            bottom: 60px !important;
+            right: 8px !important;
+            width: 42px !important;
+            height: 42px !important;
+            font-size: 1.2rem !important;
+        }
+    }
+
 </style>
 
 """, unsafe_allow_html=True)
