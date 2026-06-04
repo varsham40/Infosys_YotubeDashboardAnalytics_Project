@@ -10,3 +10,6 @@ fpdf2
 pytest
 openpyxl
 XlsxWriter
+matplotlib
+requests
+numpy
