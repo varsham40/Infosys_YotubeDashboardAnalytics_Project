@@ -2151,7 +2151,8 @@ if fetch_button and channel_id_input:
             st.rerun()
         else:
             status.update(label="❌ Failed", state="error")
-            st.error(res['message'])
+            st.error(f"**Sync Failed:** {res['message']}")
+            st.warning("💡 **Debug Tip:** Check Streamlit Cloud logs (Manage app > Logs) for `[YOUTUBE_API]` and `[CHANNEL_EXTRACTOR]` lines to see the exact failure point.")
 
 # ═══════════════════════════════════════════════════════════════
 # PAGE: RECENT HUB — Premium Gallery View

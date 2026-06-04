@@ -5,6 +5,13 @@ from data_processing.video_extractor import extract_video_data, extract_video_da
 from sqlalchemy.orm import Session
 import pandas as pd
 import streamlit as st
+import sys
+import traceback
+
+def _log(msg):
+    """Unified debug logger visible in Streamlit Cloud logs."""
+    print(f"[DATA_INSERTION] {msg}", flush=True)
+    print(f"[DATA_INSERTION] {msg}", file=sys.stderr, flush=True)
 
 # --- HELPER: DATA VALIDATION (Step 4) ---
 def validate_data(data, required_fields):
@@ -74,30 +81,38 @@ def insert_video_statistics(session: Session, stats_data: dict):
     session.add(stats)
 
 def store_channel_data(channel_id: str, limit: int = 50):
+    _log(f"=== store_channel_data called for channel_id='{channel_id}' ===")
     session = SessionLocal()
     summary = {"channel_name": "Unknown", "videos_processed": 0, "status": "Error", "message": ""}
     try:
         # Step 4: Save Channel
+        _log("Calling extract_channel_data...")
         df_channel = extract_channel_data([channel_id])
+        _log(f"extract_channel_data returned DataFrame shape: {df_channel.shape}")
         if df_channel.empty:
-            summary["message"] = f"No data found for channel: {channel_id}"
+            _log("DataFrame is empty — no channel data returned.")
+            summary["message"] = f"No data found for channel: {channel_id}. The channel ID may be invalid or the YouTube API key may be misconfigured."
             return summary
 
         ch_dict = df_channel.iloc[0].to_dict()
         summary["channel_name"] = ch_dict["channel_name"]
+        _log(f"Channel resolved: '{ch_dict['channel_name']}', playlist_id='{ch_dict.get('playlist_id')}'")
         
         channel = insert_or_update_channel(session, ch_dict)
+        _log("Channel inserted/updated in database.")
 
         # Steps 5 & 6: Save Videos and Stats
         if channel.playlist_id:
+            _log(f"Fetching videos for playlist: {channel.playlist_id}")
             df_videos = extract_video_data(channel.playlist_id, limit=limit)
+            _log(f"Videos fetched: {len(df_videos)} rows")
             if not df_videos.empty:
-                # Get existing video IDs in a single query
                 existing_video_ids = {
                     r[0] for r in session.query(Video.video_id)
                     .filter(Video.channel_id == channel.channel_id)
                     .all()
                 }
+                _log(f"Existing video IDs in DB: {len(existing_video_ids)}")
 
                 new_videos = []
                 videos_to_update = []
@@ -106,7 +121,6 @@ def store_channel_data(channel_id: str, limit: int = 50):
                 for _, row in df_videos.iterrows():
                     v_dict = row.to_dict()
                     
-                    # Validation
                     is_valid, msg = validate_data(v_dict, ["video_id", "title"])
                     if not is_valid:
                         continue
@@ -141,7 +155,7 @@ def store_channel_data(channel_id: str, limit: int = 50):
                     )
                     stats_objects.append(stats_obj)
 
-                # Bulk inserts and updates
+                _log(f"Bulk save: {len(new_videos)} new, {len(videos_to_update)} updates, {len(stats_objects)} stats")
                 if new_videos:
                     session.bulk_save_objects(new_videos)
                 if videos_to_update:
@@ -150,16 +164,27 @@ def store_channel_data(channel_id: str, limit: int = 50):
                     session.bulk_save_objects(stats_objects)
 
                 summary["videos_processed"] = len(df_videos)
+        else:
+            _log("WARNING: Channel has no playlist_id — cannot fetch videos.")
         
         session.commit()
+        _log("Session committed successfully.")
         summary["status"] = "Success"
         return summary
-    except Exception as e:
+    except ValueError as e:
+        _log(f"ValueError in store_channel_data: {e}")
         session.rollback()
         summary["message"] = str(e)
         return summary
+    except Exception as e:
+        _log(f"Unexpected exception in store_channel_data: {e}")
+        _log(traceback.format_exc())
+        session.rollback()
+        summary["message"] = f"Internal error: {e}"
+        return summary
     finally:
         session.close()
+        _log("Session closed.")
 
 def store_channel_data_for_year(channel_id: str, year: int, limit: int = 50):
     session = SessionLocal()

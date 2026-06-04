@@ -1,4 +1,7 @@
 import os
+import sys
+import json
+import traceback
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -8,6 +11,11 @@ load_dotenv()
 
 _youtube_client = None
 
+def _log(msg):
+    """Unified logger that writes to both stdout and stderr for Streamlit Cloud visibility."""
+    print(f"[YOUTUBE_API] {msg}", flush=True)
+    print(f"[YOUTUBE_API] {msg}", file=sys.stderr, flush=True)
+
 def get_youtube_client():
     """
     Initializes and returns an authenticated YouTube Data API client.
@@ -15,42 +23,55 @@ def get_youtube_client():
     """
     global _youtube_client
     if _youtube_client is not None:
+        _log("Returning cached YouTube client.")
         return _youtube_client
 
     api_key = os.getenv("YOUTUBE_API_KEY")
+    _log(f"API Key loaded: {'YES' if api_key else 'NO (MISSING!)'}")
+    if api_key:
+        _log(f"API Key prefix: {api_key[:6]}*** (length={len(api_key)})")
+    else:
+        _log("WARNING: YOUTUBE_API_KEY is not set in environment variables or Streamlit Secrets!")
+
     if not api_key:
-        raise ValueError("Error: YOUTUBE_API_KEY not found. Please set YOUTUBE_API_KEY in your environment variables, .env file, or Streamlit Secrets.")
+        raise ValueError(
+            "YOUTUBE_API_KEY not found! "
+            "If running locally, check your .env file. "
+            "If deployed on Streamlit Cloud, go to App Settings > Secrets and add: YOUTUBE_API_KEY = \"your_api_key\""
+        )
 
     try:
-        # Use static_discovery=True to avoid dynamic discovery file downloads, making creation faster
+        _log("Building YouTube API client with static_discovery=True...")
         _youtube_client = build('youtube', 'v3', developerKey=api_key, static_discovery=True)
+        _log("YouTube client built successfully!")
         return _youtube_client
     except HttpError as e:
-        import json
         try:
             error_details = json.loads(e.content.decode('utf-8'))
             msg = error_details.get('error', {}).get('message', str(e))
+            code = error_details.get('error', {}).get('code', 'unknown')
         except:
             msg = str(e)
-        raise ValueError(f"Failed to connect to YouTube API: {msg}")
+            code = 'unknown'
+        _log(f"HttpError while building client: code={code}, message={msg}")
+        raise ValueError(f"Failed to connect to YouTube API (HTTP {code}): {msg}")
     except Exception as e:
+        _log(f"Unexpected error building YouTube client: {e}")
+        _log(traceback.format_exc())
         raise ValueError(f"Unexpected error initializing YouTube client: {e}")
 
 def get_channel_details(youtube, channel_id):
     """
     Fetches detailed information for a given YouTube Channel ID.
-    Params:
-        youtube: The authenticated YouTube client object.
-        channel_id: The ID of the YouTube channel (e.g., 'UC_x5XG1OV2P6uZZ5FSM9Ttw').
-    Returns:
-        dict: A dictionary containing channel details or raises ValueError.
     """
+    _log(f"Querying channel details for ID: {channel_id}")
     try:
         request = youtube.channels().list(
             part="snippet,statistics,contentDetails",
             id=channel_id
         )
         response = request.execute()
+        _log(f"API response received. Items count: {len(response.get('items', []))}")
 
         if "items" in response and len(response["items"]) > 0:
             item = response["items"][0]
@@ -69,32 +90,44 @@ def get_channel_details(youtube, channel_id):
                 "published_at": snippet.get("publishedAt"),
                 "thumbnail_url": snippet.get("thumbnails", {}).get("high", {}).get("url")
             }
+            _log(f"Channel found: {data['channel_name']} | playlist_id={data['playlist_id']}")
             return data
         else:
-            raise ValueError(f"No YouTube channel found with ID: {channel_id}. Please verify that the channel ID is correct and starts with 'UC'.")
+            _log(f"Channel ID '{channel_id}' returned no items. Raw response keys: {list(response.keys())}")
+            raise ValueError(
+                f"No YouTube channel found with ID: '{channel_id}'. "
+                f"Please double-check the channel ID — it must start with 'UC' and be exactly 24 characters long."
+            )
 
     except HttpError as e:
-        import json
         try:
             error_details = json.loads(e.content.decode('utf-8'))
             msg = error_details.get('error', {}).get('message', str(e))
+            code = error_details.get('error', {}).get('code', 'unknown')
+            errors = error_details.get('error', {}).get('errors', [])
+            reason = errors[0].get('reason', '') if errors else ''
         except:
             msg = str(e)
-        raise ValueError(f"YouTube API Error: {msg}")
+            code = 'unknown'
+            reason = ''
+        _log(f"HttpError fetching channel details: code={code}, reason={reason}, message={msg}")
+        raise ValueError(f"YouTube API Error (HTTP {code}, reason={reason}): {msg}")
     except ValueError as e:
         raise
     except Exception as e:
+        _log(f"Unexpected error fetching channel details: {e}")
+        _log(traceback.format_exc())
         raise ValueError(f"Unexpected Error fetching channel details: {e}")
 
 def get_video_ids(youtube, playlist_id, limit=100):
     """
     Fetches video IDs from a playlist using pagination up to a limit.
     """
+    _log(f"Fetching video IDs from playlist: {playlist_id} (limit={limit})")
     video_ids = []
     next_page_token = None
     try:
         while True:
-            # Determine maxResults for this page
             page_limit = min(50, limit - len(video_ids)) if limit else 50
             if page_limit <= 0:
                 break
@@ -117,22 +150,25 @@ def get_video_ids(youtube, playlist_id, limit=100):
             if not next_page_token:
                 break
                 
+        _log(f"Total video IDs fetched: {len(video_ids)}")
         return video_ids
     except HttpError as e:
-        import json
         try:
             error_details = json.loads(e.content.decode('utf-8'))
             msg = error_details.get('error', {}).get('message', str(e))
+            code = error_details.get('error', {}).get('code', 'unknown')
         except:
             msg = str(e)
-        raise ValueError(f"YouTube API Error fetching videos: {msg}")
+            code = 'unknown'
+        _log(f"HttpError fetching video IDs: code={code}, message={msg}")
+        raise ValueError(f"YouTube API Error fetching videos (HTTP {code}): {msg}")
 
 def get_video_details(youtube, video_ids):
     """
     Fetches details for a list of Video IDs.
     """
+    _log(f"Fetching details for {len(video_ids)} video IDs")
     video_data = []
-    # API allows max 50 IDs per request
     for i in range(0, len(video_ids), 50):
         chunk = video_ids[i:i+50]
         try:
@@ -160,20 +196,24 @@ def get_video_details(youtube, video_ids):
                     "caption": content.get("caption")
                 })
         except HttpError as e:
-            import json
             try:
                 error_details = json.loads(e.content.decode('utf-8'))
                 msg = error_details.get('error', {}).get('message', str(e))
+                code = error_details.get('error', {}).get('code', 'unknown')
             except:
                 msg = str(e)
-            raise ValueError(f"YouTube API Error fetching video details: {msg}")
+                code = 'unknown'
+            _log(f"HttpError fetching video details (chunk {i}): code={code}, message={msg}")
+            raise ValueError(f"YouTube API Error fetching video details (HTTP {code}): {msg}")
             
+    _log(f"Total video details fetched: {len(video_data)}")
     return video_data
 
 def get_video_ids_for_year(youtube, channel_id, year, limit=50):
     """
     Searches for video IDs from a specific channel published in a specific year.
     """
+    _log(f"Searching video IDs for channel={channel_id}, year={year}, limit={limit}")
     video_ids = []
     next_page_token = None
     published_after = f"{year}-01-01T00:00:00Z"
@@ -207,15 +247,18 @@ def get_video_ids_for_year(youtube, channel_id, year, limit=50):
             if not next_page_token:
                 break
                 
+        _log(f"Total video IDs found for year {year}: {len(video_ids)}")
         return video_ids
     except HttpError as e:
-        import json
         try:
             error_details = json.loads(e.content.decode('utf-8'))
             msg = error_details.get('error', {}).get('message', str(e))
+            code = error_details.get('error', {}).get('code', 'unknown')
         except:
             msg = str(e)
-        raise ValueError(f"YouTube API Error searching videos for year {year}: {msg}")
+            code = 'unknown'
+        _log(f"HttpError searching video IDs for year {year}: code={code}, message={msg}")
+        raise ValueError(f"YouTube API Error searching videos for year {year} (HTTP {code}): {msg}")
 
 
 if __name__ == "__main__":
@@ -223,7 +266,6 @@ if __name__ == "__main__":
     print("Testing YouTube API Connection...")
     try:
         yt = get_youtube_client()
-        # Test with Google Developers channel ID
         test_channel_id = "UC_x5XG1OV2P6uZZ5FSM9Ttw" 
         print(f"Fetching details for Channel ID: {test_channel_id}")
         
@@ -243,6 +285,6 @@ if __name__ == "__main__":
                     print("Fetching First Video Details...")
                     v_stats = get_video_details(yt, v_ids[:1])
                     print(v_stats)
-            
+        
     except ValueError as e:
         print(e)
