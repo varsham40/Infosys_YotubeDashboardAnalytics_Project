@@ -46,7 +46,9 @@ from help_widget import render_help_widget
 from ai_assistant import render_ai_assistant
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="YouTube Analytics Pro", page_icon="📊", layout="wide")
+from PIL import Image as _PILImage
+_favicon = _PILImage.open(os.path.join(os.path.dirname(__file__), "assets", "favicon.png"))
+st.set_page_config(page_title="YouTube Analytics", page_icon=_favicon, layout="wide")
 
 # --- HELPER FUNCTIONS ---
 def fmt_k_m(num):
