@@ -1,10 +1,10 @@
 import pandas as pd
 try:
-    from .youtube_api import get_youtube_client, get_video_ids, get_video_details, get_channel_details
+    from .youtube_api import get_youtube_client, get_video_ids, get_video_details, get_channel_details, get_video_ids_for_year
 except ImportError:
-    from youtube_api import get_youtube_client, get_video_ids, get_video_details, get_channel_details
+    from youtube_api import get_youtube_client, get_video_ids, get_video_details, get_channel_details, get_video_ids_for_year
 
-def extract_video_data(playlist_id):
+def extract_video_data(playlist_id, limit=100):
     """
     Fetches videos from a playlist and returns a Pandas DataFrame.
     """
@@ -13,10 +13,37 @@ def extract_video_data(playlist_id):
         return pd.DataFrame()
 
     print(f"Fetching videos for Playlist ID: {playlist_id}")
-    video_ids = get_video_ids(youtube, playlist_id)
+    video_ids = get_video_ids(youtube, playlist_id, limit)
     
     if not video_ids:
         print("No videos found.")
+        return pd.DataFrame()
+        
+    print(f"Fetching details for {len(video_ids)} videos...")
+    video_data = get_video_details(youtube, video_ids)
+    
+    if video_data:
+        df = pd.DataFrame(video_data)
+        # Ensure we have all columns even if empty
+        cols = ['video_id', 'title', 'published_at', 'view_count', 'like_count', 'comment_count', 'duration', 'definition', 'caption', 'thumbnail_url']
+        df = df[[c for c in cols if c in df.columns]]
+        return df
+    else:
+        return pd.DataFrame()
+
+def extract_video_data_for_year(channel_id, year, limit=50):
+    """
+    Fetches videos from a specific channel and year, and returns a Pandas DataFrame.
+    """
+    youtube = get_youtube_client()
+    if not youtube or not channel_id:
+        return pd.DataFrame()
+
+    print(f"Fetching videos for Channel ID {channel_id} in Year {year}")
+    video_ids = get_video_ids_for_year(youtube, channel_id, year, limit)
+    
+    if not video_ids:
+        print(f"No videos found for year {year}.")
         return pd.DataFrame()
         
     print(f"Fetching details for {len(video_ids)} videos...")

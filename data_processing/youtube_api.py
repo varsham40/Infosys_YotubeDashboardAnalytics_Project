@@ -6,17 +6,25 @@ from googleapiclient.errors import HttpError
 # Load environment variables
 load_dotenv()
 
+_youtube_client = None
+
 def get_youtube_client():
     """
     Initializes and returns an authenticated YouTube Data API client.
+    Caches the client globally to avoid recreating it and downloading the discovery doc repeatedly.
     """
+    global _youtube_client
+    if _youtube_client is not None:
+        return _youtube_client
+
     api_key = os.getenv("YOUTUBE_API_KEY")
     if not api_key:
         raise ValueError("Error: YOUTUBE_API_KEY not found in .env file.")
 
     try:
-        youtube = build('youtube', 'v3', developerKey=api_key)
-        return youtube
+        # Use static_discovery=True to avoid dynamic discovery file downloads, making creation faster
+        _youtube_client = build('youtube', 'v3', developerKey=api_key, static_discovery=True)
+        return _youtube_client
     except HttpError as e:
         print(f"An error occurred connecting to YouTube API: {e}")
         return None
@@ -66,24 +74,32 @@ def get_channel_details(youtube, channel_id):
         print(f"Unexpected Error: {e}")
         return None
 
-def get_video_ids(youtube, playlist_id):
+def get_video_ids(youtube, playlist_id, limit=100):
     """
-    Fetches all video IDs from a playlist using pagination.
+    Fetches video IDs from a playlist using pagination up to a limit.
     """
     video_ids = []
     next_page_token = None
     try:
         while True:
+            # Determine maxResults for this page
+            page_limit = min(50, limit - len(video_ids)) if limit else 50
+            if page_limit <= 0:
+                break
+
             request = youtube.playlistItems().list(
                 part="contentDetails",
                 playlistId=playlist_id,
-                maxResults=50,
+                maxResults=page_limit,
                 pageToken=next_page_token
             )
             response = request.execute()
             
             for item in response.get("items", []):
                 video_ids.append(item["contentDetails"]["videoId"])
+                
+            if limit and len(video_ids) >= limit:
+                break
                 
             next_page_token = response.get("nextPageToken")
             if not next_page_token:
@@ -130,6 +146,49 @@ def get_video_details(youtube, video_ids):
             print(f"Error fetching video details: {e}")
             
     return video_data
+
+def get_video_ids_for_year(youtube, channel_id, year, limit=50):
+    """
+    Searches for video IDs from a specific channel published in a specific year.
+    """
+    video_ids = []
+    next_page_token = None
+    published_after = f"{year}-01-01T00:00:00Z"
+    published_before = f"{year}-12-31T23:59:59Z"
+    
+    try:
+        while True:
+            page_limit = min(50, limit - len(video_ids)) if limit else 50
+            if page_limit <= 0:
+                break
+                
+            request = youtube.search().list(
+                part="id",
+                channelId=channel_id,
+                publishedAfter=published_after,
+                publishedBefore=published_before,
+                type="video",
+                maxResults=page_limit,
+                pageToken=next_page_token
+            )
+            response = request.execute()
+            
+            for item in response.get("items", []):
+                if "videoId" in item.get("id", {}):
+                    video_ids.append(item["id"]["videoId"])
+                    
+            if limit and len(video_ids) >= limit:
+                break
+                
+            next_page_token = response.get("nextPageToken")
+            if not next_page_token:
+                break
+                
+        return video_ids
+    except HttpError as e:
+        print(f"Error searching video IDs for year {year}: {e}")
+        return video_ids
+
 
 if __name__ == "__main__":
     # Simple test block
