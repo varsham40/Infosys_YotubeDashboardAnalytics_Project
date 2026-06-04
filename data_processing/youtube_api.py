@@ -19,15 +19,22 @@ def get_youtube_client():
 
     api_key = os.getenv("YOUTUBE_API_KEY")
     if not api_key:
-        raise ValueError("Error: YOUTUBE_API_KEY not found in .env file.")
+        raise ValueError("Error: YOUTUBE_API_KEY not found. Please set YOUTUBE_API_KEY in your environment variables, .env file, or Streamlit Secrets.")
 
     try:
         # Use static_discovery=True to avoid dynamic discovery file downloads, making creation faster
         _youtube_client = build('youtube', 'v3', developerKey=api_key, static_discovery=True)
         return _youtube_client
     except HttpError as e:
-        print(f"An error occurred connecting to YouTube API: {e}")
-        return None
+        import json
+        try:
+            error_details = json.loads(e.content.decode('utf-8'))
+            msg = error_details.get('error', {}).get('message', str(e))
+        except:
+            msg = str(e)
+        raise ValueError(f"Failed to connect to YouTube API: {msg}")
+    except Exception as e:
+        raise ValueError(f"Unexpected error initializing YouTube client: {e}")
 
 def get_channel_details(youtube, channel_id):
     """
@@ -36,7 +43,7 @@ def get_channel_details(youtube, channel_id):
         youtube: The authenticated YouTube client object.
         channel_id: The ID of the YouTube channel (e.g., 'UC_x5XG1OV2P6uZZ5FSM9Ttw').
     Returns:
-        dict: A dictionary containing channel details or None if failed.
+        dict: A dictionary containing channel details or raises ValueError.
     """
     try:
         request = youtube.channels().list(
@@ -64,15 +71,20 @@ def get_channel_details(youtube, channel_id):
             }
             return data
         else:
-            print(f"Error: Channel with ID {channel_id} not found.")
-            return None
+            raise ValueError(f"No YouTube channel found with ID: {channel_id}. Please verify that the channel ID is correct and starts with 'UC'.")
 
     except HttpError as e:
-        print(f"API Error: {e}")
-        return None
+        import json
+        try:
+            error_details = json.loads(e.content.decode('utf-8'))
+            msg = error_details.get('error', {}).get('message', str(e))
+        except:
+            msg = str(e)
+        raise ValueError(f"YouTube API Error: {msg}")
+    except ValueError as e:
+        raise
     except Exception as e:
-        print(f"Unexpected Error: {e}")
-        return None
+        raise ValueError(f"Unexpected Error fetching channel details: {e}")
 
 def get_video_ids(youtube, playlist_id, limit=100):
     """
@@ -107,8 +119,13 @@ def get_video_ids(youtube, playlist_id, limit=100):
                 
         return video_ids
     except HttpError as e:
-        print(f"Error fetching video IDs: {e}")
-        return video_ids
+        import json
+        try:
+            error_details = json.loads(e.content.decode('utf-8'))
+            msg = error_details.get('error', {}).get('message', str(e))
+        except:
+            msg = str(e)
+        raise ValueError(f"YouTube API Error fetching videos: {msg}")
 
 def get_video_details(youtube, video_ids):
     """
@@ -143,7 +160,13 @@ def get_video_details(youtube, video_ids):
                     "caption": content.get("caption")
                 })
         except HttpError as e:
-            print(f"Error fetching video details: {e}")
+            import json
+            try:
+                error_details = json.loads(e.content.decode('utf-8'))
+                msg = error_details.get('error', {}).get('message', str(e))
+            except:
+                msg = str(e)
+            raise ValueError(f"YouTube API Error fetching video details: {msg}")
             
     return video_data
 
@@ -186,8 +209,13 @@ def get_video_ids_for_year(youtube, channel_id, year, limit=50):
                 
         return video_ids
     except HttpError as e:
-        print(f"Error searching video IDs for year {year}: {e}")
-        return video_ids
+        import json
+        try:
+            error_details = json.loads(e.content.decode('utf-8'))
+            msg = error_details.get('error', {}).get('message', str(e))
+        except:
+            msg = str(e)
+        raise ValueError(f"YouTube API Error searching videos for year {year}: {msg}")
 
 
 if __name__ == "__main__":

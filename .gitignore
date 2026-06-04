@@ -1,8 +1,12 @@
 .venv/
 venv/
 .env
+.streamlit/secrets.toml
 __pycache__/
 *.pyc
+*.pdf
+.DS_Store
+Thumbs.db
 MILESTONE_1_SUMMARY.md
 README_CHARTS_AND_CALCULATIONS.md
 README_MILESTONE2.md
