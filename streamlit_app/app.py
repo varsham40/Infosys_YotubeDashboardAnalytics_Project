@@ -6,6 +6,7 @@ import numpy as np
 import datetime
 import sys
 import os
+import base64
 import html
 import isodate
 import requests
@@ -2583,18 +2584,20 @@ elif st.session_state['page'] == 'dash':
 
     if not st.session_state['active_channel_id']:
         # --- GENESIS 2.3: VISUAL GALLERY OVERHAUL ---
-        import base64, os
-
         def _img_b64(path):
-            if os.path.exists(path):
+            """Convert a local image file to a base64 data URI for embedding in HTML."""
+            try:
                 with open(path, "rb") as f:
-                    return base64.b64encode(f.read()).decode()
-            return ""
+                    data = base64.b64encode(f.read()).decode()
+                return f"data:image/png;base64,{data}"
+            except FileNotFoundError:
+                return ""
 
-        _img1 = _img_b64(r"C:\Users\VARSHA\.gemini\antigravity\brain\73d149b4-7287-4cca-97bc-08d956086152\genesis_profile_card_1773854954407.png")
-        _img2 = _img_b64(r"C:\Users\VARSHA\.gemini\antigravity\brain\73d149b4-7287-4cca-97bc-08d956086152\genesis_main_dashboard_1773854983437.png")
-        _img3 = _img_b64(r"C:\Users\VARSHA\.gemini\antigravity\brain\73d149b4-7287-4cca-97bc-08d956086152\genesis_reports_view_1773855034677.png")
-        _img4 = _img_b64(r"C:\Users\VARSHA\.gemini\antigravity\brain\73d149b4-7287-4cca-97bc-08d956086152\genesis_visualizations_view_1773855092148.png")
+        _assets_dir = os.path.join(os.path.dirname(__file__), "assets")
+        _img1 = _img_b64(os.path.join(_assets_dir, "gallery_1.png"))
+        _img2 = _img_b64(os.path.join(_assets_dir, "gallery_2.png"))
+        _img3 = _img_b64(os.path.join(_assets_dir, "gallery_3.png"))
+        _img4 = _img_b64(os.path.join(_assets_dir, "gallery_4.png"))
 
         st.markdown(f"""
             <style>
@@ -2606,7 +2609,7 @@ elif st.session_state['page'] == 'dash':
                 }}
 
                 .genesis23-bg {{
-                    background: radial-gradient(ellipse at 80% 0%, #1E1B4B 0%, #0F172A 50%, #fff 100%);
+                    background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 40%, #1a0533 100%);
                     border-radius: 40px;
                     padding: 80px 40px 60px 40px;
                     text-align: center;
@@ -2804,17 +2807,17 @@ elif st.session_state['page'] == 'dash':
                         <span class='pill-icon'>🌍</span> Battle Arena
                     </div>
                     <div class='genesis23-icon-pill' style='border-color:rgba(239,68,68,0.35); background:rgba(239,68,68,0.12);'>
-                        <span class='pill-icon'>📈</span> Velocity Intel
+                        <span class='pill-icon'>📈</span> Trend Analysis
                     </div>
                     <div class='genesis23-icon-pill' style='border-color:rgba(16,185,129,0.35); background:rgba(16,185,129,0.12);'>
-                        <span class='pill-icon'>🛡️</span> Stability Guard
+                        <span class='pill-icon'>🎯</span> Content Strategy
                     </div>
                     <div class='genesis23-icon-pill' style='border-color:rgba(245,158,11,0.35); background:rgba(245,158,11,0.12);'>
                         <span class='pill-icon'>📊</span> Deep Analytics
                     </div>
                 </div>
                 <div class='genesis23-headline'>Your YouTube Intelligence<br>Command Center</div>
-                <div class='genesis23-sub'>From sub-millisecond data syncs to deep-rival mapping — build, grow, and dominate faster than ever.</div>
+                <div class='genesis23-sub'>Analyze any YouTube channel in seconds — compare rivals, uncover trends, and get AI-powered insights to grow your audience.</div>
             </div>
         """, unsafe_allow_html=True)
 
@@ -2849,8 +2852,8 @@ elif st.session_state['page'] == 'dash':
         # AUTO-SCROLLING IMAGE GALLERY
         imgs = [_img1, _img2, _img3, _img4]
         img_tags = "".join(
-            f'<img src="data:image/png;base64,{b}" alt="Genesis Panel {i+1}"/>'
-            for i, b in enumerate(imgs) if b
+            f'<img src="{src}" alt="Genesis Panel {i+1}"/>'
+            for i, src in enumerate(imgs)
         )
         # duplicate for seamless loop
         img_tags_double = img_tags + img_tags
@@ -2866,7 +2869,7 @@ elif st.session_state['page'] == 'dash':
         st.markdown("""
             <div style='margin-top:80px; text-align:center;'>
                 <p style='font-family:Outfit; font-size:0.85rem; font-weight:700; color:#94A3B8; text-transform:uppercase; letter-spacing:4px; margin-bottom:10px;'>INTELLIGENCE MODULES</p>
-                <h2 style='font-family:Outfit; font-weight:900; color:#1E293B; letter-spacing:-1.5px; font-size:2.4rem; margin:0;'>Everything you need to dominate</h2>
+                <h2 style='font-family:Outfit; font-weight:900; color:#1E293B; letter-spacing:-1.5px; font-size:2.4rem; margin:0;'>Powerful Analytics at Your Fingertips</h2>
             </div>
         """, unsafe_allow_html=True)
 
@@ -2884,16 +2887,16 @@ elif st.session_state['page'] == 'dash':
             st.markdown("""
                 <div class='cap-card' style='border-top:6px solid #EF4444;'>
                     <div class='cap-icon'>📈</div>
-                    <h3>Velocity Intelligence</h3>
-                    <p>Track engagement hooks in real-time. Uncover the precise moments and topics that trigger massive viral reactive spikes.</p>
+                    <h3>Trend Analysis</h3>
+                    <p>Visualize upload patterns, engagement trends, and audience growth over time with interactive charts and smart insights.</p>
                 </div>
             """, unsafe_allow_html=True)
         with f3:
             st.markdown("""
                 <div class='cap-card' style='border-top:6px solid #10B981;'>
-                    <div class='cap-icon'>🛡️</div>
-                    <h3>Stability Guard</h3>
-                    <p>Monitor deep health scores. Use sub-to-view ratios to ensure your audience is loyal, consistent, and growing sustainably.</p>
+                    <div class='cap-icon'>🤖</div>
+                    <h3>AI-Powered Insights</h3>
+                    <p>Chat with our AI assistant about any channel's data. Generate PDF reports, get content strategy recommendations, and more.</p>
                 </div>
             """, unsafe_allow_html=True)
 
