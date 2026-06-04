@@ -134,17 +134,15 @@ def render_ai_assistant():
     # Inject CSS for the floating chat button and popover body
     st.markdown("""
         <style>
-            /* Target the popover container and position it fixed */
+            /* ── Floating Chat Button ── */
             div[data-testid="stPopover"] {
                 position: fixed !important;
                 bottom: 24px !important;
-                right: 96px !important; /* Beside the 56px help icon which is at right:24px */
+                right: 24px !important;
                 z-index: 2147483000 !important;
                 width: 56px !important;
                 height: 56px !important;
             }
-
-            /* Target the button INSIDE the popover (using descendant, not direct child > ) */
             div[data-testid="stPopover"] button {
                 width: 56px !important;
                 height: 56px !important;
@@ -152,45 +150,68 @@ def render_ai_assistant():
                 background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%) !important;
                 color: white !important;
                 border: 2px solid rgba(255,255,255,0.18) !important;
-                box-shadow: 0 12px 32px rgba(99,102,241,0.34) !important;
+                box-shadow: 0 8px 24px rgba(99,102,241,0.35) !important;
                 padding: 0 !important;
-                font-size: 1.8rem !important;
-                transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+                font-size: 1.7rem !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
             }
-            
-            /* Hover state */
             div[data-testid="stPopover"] button:hover {
-                transform: translateY(-3px) scale(1.08) !important;
-                box-shadow: 0 18px 36px rgba(99,102,241,0.42) !important;
-                border-color: rgba(255,255,255,0.4) !important;
+                box-shadow: 0 14px 32px rgba(99,102,241,0.45) !important;
             }
-            
-            /* Hide the dropdown chevron SVG */
             div[data-testid="stPopover"] button svg {
                 display: none !important;
             }
-            
-            /* Popover body styling for a full-height right panel */
+
+            /* ── Chatbot Popup Window ── */
             div[data-testid="stPopoverBody"] {
-                position: fixed !important;
-                top: 0 !important;
-                right: 0 !important;
-                bottom: 0 !important;
-                width: 480px !important;
-                max-width: 100vw !important;
-                height: 100vh !important;
-                max-height: 100vh !important;
-                overflow-y: auto;
-                border-radius: 0 !important;
+                width: 380px !important;
+                max-width: 92vw !important;
+                max-height: 75vh !important;
+                border-radius: 18px !important;
+                border: 1px solid #E2E8F0 !important;
+                box-shadow: 0 16px 48px rgba(15,23,42,0.18) !important;
+                background: #FFFFFF !important;
+                padding: 16px !important;
+                overflow-y: auto !important;
+            }
+
+            /* Hide border on inner chat scroll container */
+            div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlockBorderWrapper"] {
                 border: none !important;
-                border-left: 1px solid rgba(99,102,241,0.3) !important;
-                box-shadow: -20px 0 40px rgba(15,23,42,0.2) !important;
-                background: linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%) !important;
-                z-index: 2147483000 !important;
-                padding-bottom: 80px !important; /* give space for chat input */
+            }
+
+            /* Thin scrollbar inside chat area */
+            div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlockBorderWrapper"] > div {
+                scrollbar-width: thin;
+                scrollbar-color: #CBD5E1 transparent;
+            }
+            div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlockBorderWrapper"] > div::-webkit-scrollbar {
+                width: 4px;
+            }
+            div[data-testid="stPopoverBody"] div[data-testid="stVerticalBlockBorderWrapper"] > div::-webkit-scrollbar-thumb {
+                background: #CBD5E1;
+                border-radius: 4px;
+            }
+
+            /* Chat message styling */
+            div[data-testid="stPopoverBody"] div[data-testid="stChatMessage"] {
+                padding: 8px 10px !important;
+                font-size: 0.88rem !important;
+            }
+
+            /* Chat input - make sure it stays visible */
+            div[data-testid="stPopoverBody"] div[data-testid="stChatInput"] textarea {
+                font-size: 0.88rem !important;
+            }
+
+            /* ── Mobile ── */
+            @media (max-width: 768px) {
+                div[data-testid="stPopoverBody"] {
+                    width: 94vw !important;
+                    height: 60vh !important;
+                }
             }
         </style>
     """, unsafe_allow_html=True)
@@ -205,7 +226,7 @@ def render_ai_assistant():
             return
 
         # Render Chat History
-        chat_container = st.container(height=520)
+        chat_container = st.container(height=300)
         with chat_container:
             for message in st.session_state.chat_history:
                 with st.chat_message(message["role"]):

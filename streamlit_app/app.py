@@ -2568,6 +2568,22 @@ if st.session_state['page'] == 'recent':
                     st.query_params.clear()
                     st.rerun()
 
+                # Delete action
+                if st.button(f"🗑️ Delete Channel", key=f"hub_del_{ch['id']}", use_container_width=True):
+                    try:
+                        from sqlalchemy.orm import Session
+                        from database_operations.db_model import Channel
+                        with Session(engine) as session:
+                            channel_to_delete = session.query(Channel).filter_by(channel_id=ch['id']).first()
+                            if channel_to_delete:
+                                session.delete(channel_to_delete)
+                                session.commit()
+                        if st.session_state.get('active_channel_id') == ch['id']:
+                            st.session_state['active_channel_id'] = None
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error deleting: {e}")
+
 # --- PAGE: DASHBOARD ---
 elif st.session_state['page'] == 'dash':
     qp_channel = st.query_params.get("channel_id")
