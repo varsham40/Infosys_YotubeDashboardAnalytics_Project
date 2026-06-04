@@ -2,6 +2,7 @@ from database_operations.db_connection import SessionLocal
 from database_operations.db_model import Channel, Video, VideoStats
 from data_processing.channel_extractor import extract_channel_data
 from data_processing.video_extractor import extract_video_data, extract_video_data_for_year
+from data_processing.url_resolver import resolve_channel_input
 from sqlalchemy.orm import Session
 import pandas as pd
 import streamlit as st
@@ -81,17 +82,29 @@ def insert_video_statistics(session: Session, stats_data: dict):
     session.add(stats)
 
 def store_channel_data(channel_id: str, limit: int = 50):
-    _log(f"=== store_channel_data called for channel_id='{channel_id}' ===")
+    _log(f"=== store_channel_data called for input='{channel_id}' ===")
     session = SessionLocal()
-    summary = {"channel_name": "Unknown", "videos_processed": 0, "status": "Error", "message": ""}
+    summary = {"channel_name": "Unknown", "videos_processed": 0, "status": "Error", "message": "", "resolved_id": ""}
     try:
+        # --- Step 0: Resolve URL/handle/ID to a canonical Channel ID ---
+        try:
+            from data_processing.youtube_api import get_youtube_client
+            youtube_client = get_youtube_client()
+            resolved_id = resolve_channel_input(channel_id, youtube_client)
+            _log(f"Input '{channel_id}' resolved to Channel ID: '{resolved_id}'")
+            summary["resolved_id"] = resolved_id
+        except ValueError as e:
+            _log(f"URL resolution failed: {e}")
+            summary["message"] = str(e)
+            return summary
+
         # Step 4: Save Channel
         _log("Calling extract_channel_data...")
-        df_channel = extract_channel_data([channel_id])
+        df_channel = extract_channel_data([resolved_id])
         _log(f"extract_channel_data returned DataFrame shape: {df_channel.shape}")
         if df_channel.empty:
             _log("DataFrame is empty — no channel data returned.")
-            summary["message"] = f"No data found for channel: {channel_id}. The channel ID may be invalid or the YouTube API key may be misconfigured."
+            summary["message"] = f"No data found for channel: {resolved_id}. The channel ID may be invalid or the YouTube API key may be misconfigured."
             return summary
 
         ch_dict = df_channel.iloc[0].to_dict()

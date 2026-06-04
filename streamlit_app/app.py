@@ -1287,7 +1287,12 @@ with st.sidebar:
         </a>
     """, unsafe_allow_html=True)
     st.markdown("<div class='sb-section-label'>Channel Setup</div>", unsafe_allow_html=True)
-    channel_id_input = st.text_input("Channel ID", placeholder="UC_x5XG1OV2P6uZZ5FSM9Ttw")
+    channel_id_input = st.text_input(
+        "Channel ID or URL",
+        placeholder="Paste Channel ID or YouTube URL...",
+        help="Accepts: Channel ID (UCxxx...), @handle, youtube.com/@Channel, or any YouTube channel URL"
+    )
+    st.caption("e.g. `UCsq4gc-EDXqxZZbaRjqFeTw` · `@VedantuTelugu` · `youtube.com/c/ChannelName`")
     fetch_button = st.button("🚀 Run Analysis", type="primary", use_container_width=True)
     
     recent_hub_btn = st.button("☷  Channel Library", use_container_width=True, help="Explore all synced channels in a gallery view")
@@ -2138,12 +2143,13 @@ pass
 # --- HANDLE SYNC ---
 if fetch_button and channel_id_input:
     with st.status("💎 Architecting Data Stream...", expanded=True) as status:
-        st.write("📡 Accessing YouTube API...")
+        st.write("🔗 Resolving channel URL/ID...")
         res = store_channel_data(channel_id_input)
         if res['status'] == "Success":
+            resolved = res.get("resolved_id", channel_id_input)
             st.cache_data.clear()
             status.update(label="✨ Analysis Ready", state="complete")
-            st.session_state['active_channel_id'] = channel_id_input
+            st.session_state['active_channel_id'] = resolved
             st.session_state['page'] = 'dash'
             st.session_state['gp_explore'] = False
             st.query_params.clear()
@@ -2473,19 +2479,26 @@ elif st.session_state['page'] == 'dash':
         with center_col:
             st.markdown("<div class='command-engine-glass'>", unsafe_allow_html=True)
             with st.form("genesis_2_form"):
-                g2_chid = st.text_input("YouTube Channel ID Search", placeholder="Paste your Channel ID here... ✍️", label_visibility="collapsed")
+                g2_chid = st.text_input(
+                    "YouTube Channel URL or ID",
+                    placeholder="Paste any YouTube channel URL or @handle... ✍️",
+                    label_visibility="collapsed"
+                )
+                st.caption("Supports: Channel ID · @handle · youtube.com/@Channel · youtube.com/channel/UC... · youtube.com/c/Name")
                 g2_btn = st.form_submit_button("🚀 Initiate Intelligence Analysis", use_container_width=True, type="primary")
                 if g2_btn and g2_chid:
                     with st.status("💎 Architecting Data Stream...", expanded=True) as status:
+                        st.write("🔗 Resolving channel URL/ID...")
                         res = store_channel_data(g2_chid)
                         if res['status'] == "Success":
+                            resolved = res.get("resolved_id", g2_chid)
                             status.update(label="✨ Analysis Ready", state="complete")
-                            st.session_state['active_channel_id'] = g2_chid
+                            st.session_state['active_channel_id'] = resolved
                             st.balloons()
                             st.rerun()
                         else:
                             status.update(label="❌ Stream Interrupted", state="error")
-                            st.error(res['message'])
+                            st.error(f"**Sync Failed:** {res['message']}")  
             st.markdown("</div>", unsafe_allow_html=True)
 
         # AUTO-SCROLLING IMAGE GALLERY
