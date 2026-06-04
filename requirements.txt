@@ -14,3 +14,6 @@ matplotlib
 requests
 numpy
 groq
+beautifulsoup4
+wikipedia
+
