@@ -13,3 +13,4 @@ XlsxWriter
 matplotlib
 requests
 numpy
+groq
